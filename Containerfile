@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: CC0-1.0
 
-FROM ghcr.io/confidential-clusters/buildroot:latest AS build
+FROM ghcr.io/trusted-execution-clusters/buildroot:latest AS build
 
 COPY . /src
 WORKDIR /src
