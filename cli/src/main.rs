@@ -11,9 +11,10 @@ use josekit::jwk::Jwk;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::io::{self, Read, Write};
+use std::path::Path;
 use std::process::Command as StdCommand;
-use std::thread;
 use std::time::Duration;
+use std::{fs, thread};
 
 #[derive(Debug, Serialize, Deserialize)]
 struct ClevisHeader {
@@ -143,7 +144,7 @@ fn fetch_luks_key(servers: &[Server], path: &str, initdata: Option<String>) -> R
 
             for (index, server) in servers.iter().enumerate() {
                 eprintln!("Trying URL {}/{}: {}", index + 1, servers.len(), server.url);
-                match try_fetch_luks_key(&server.url, path, initdata.clone()) {
+                match try_fetch_luks_key(&server.url, path, &server.cert, initdata.clone()) {
                     Ok(key) => {
                         eprintln!("Successfully fetched LUKS key from URL: {}", server.url);
                         return Some(Ok(key));
@@ -171,8 +172,22 @@ fn fetch_luks_key(servers: &[Server], path: &str, initdata: Option<String>) -> R
         })
 }
 
-fn try_fetch_luks_key(url: &str, path: &str, initdata: Option<String>) -> Result<String> {
+fn try_fetch_luks_key(
+    url: &str,
+    path: &str,
+    cert: &str,
+    initdata: Option<String>,
+) -> Result<String> {
     let mut command = StdCommand::new("trustee-attester");
+    if !cert.is_empty() {
+        let cert_path = "/var/run/trustee/cert.pem";
+        let path = Path::new(cert_path);
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&path, cert)?;
+        command.arg("--cert-file").arg(cert_path);
+    }
     command
         .arg("--url")
         .arg(url)
